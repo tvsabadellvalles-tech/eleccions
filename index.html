@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Especial Eleccions · TV Sabadell Vallès</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:transparent}
+body{font-family:"Segoe UI",system-ui,Arial,sans-serif;color:#fff}
+#wrap{position:fixed;inset:0;overflow:hidden}
+#stage{width:1920px;height:1080px;position:absolute;left:0;top:0;transform-origin:0 0}
+.lt{position:absolute;left:80px;right:80px;bottom:70px;height:130px;display:flex;border-radius:14px;overflow:hidden;box-shadow:0 10px 40px #0008;transition:transform .7s cubic-bezier(.2,.8,.2,1),opacity .5s}
+.off{transform:translateY(260px);opacity:0}
+.lt .h{background:#111a2b;width:380px;padding:18px 28px;display:flex;flex-direction:column;justify-content:center}
+.lt .h b{font-size:44px}.lt .h span{font-size:24px;opacity:.8}
+.lt .pp{flex:1;display:flex;background:#0b111dee}
+.chip{flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 22px;border-left:8px solid var(--c);min-width:0}
+.chip i{font-style:normal;font-size:26px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip b{font-size:52px;line-height:1.05}.chip small{font-size:24px;opacity:.75;margin-left:8px;font-weight:400}
+.full{position:absolute;inset:80px 140px;background:#0b111df2;border-radius:24px;padding:44px 64px;box-shadow:0 20px 60px #000a;transition:opacity .6s,transform .6s}
+.full.off{transform:scale(.97);opacity:0}
+.full h2{margin:0;font-size:64px}.full .sub{font-size:28px;opacity:.75;margin-bottom:28px}
+.br{display:grid;grid-template-columns:330px 1fr 140px;gap:20px;align-items:center;height:92px;font-size:34px}
+.trk{position:relative;height:56px;background:#ffffff14;border-radius:8px}
+.fill{height:100%;border-radius:8px;background:var(--c);transition:width 1s cubic-bezier(.2,.8,.2,1)}
+.mj{position:absolute;top:-12px;bottom:-12px;width:4px;background:#fff}
+.br b{font-size:48px;text-align:right}
+.seats{display:flex;flex-wrap:wrap;gap:16px;margin-top:20px;justify-content:center}
+.seats u{width:92px;height:92px;border-radius:50%;background:var(--c,#ffffff22);transition:background .6s;display:block;border:3px solid #ffffff33}
+.leg{display:flex;gap:30px;justify-content:center;margin-top:28px;font-size:30px;flex-wrap:wrap}
+.leg i{font-style:normal}.leg s{display:inline-block;width:22px;height:22px;border-radius:50%;background:var(--c);margin-right:10px;vertical-align:-2px}
+#dbg{position:fixed;left:8px;top:8px;font:14px monospace;background:#000b;padding:4px 8px;border-radius:6px;display:none}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"></div></div><div id="dbg"></div>
+<script>
+/* === CONFIGURACIÓ: enganxa aquí l'enllaç CSV publicat del Google Sheet === */
+var CSV_URL = "POSA_AQUI_L_ENLLAC_CSV_DEL_SHEET";
+var REFRESH_MS = 4000;
+/* Opcions per URL: ?csv=...  ?bg=%2300ff00 (fons de prova)  ?debug  ?demo */
+var Q = new URLSearchParams(location.search);
+if (Q.get("csv")) CSV_URL = Q.get("csv");
+if (Q.get("bg")) document.body.style.background = Q.get("bg");
+var dbg = document.getElementById("dbg"); if (Q.has("debug")) dbg.style.display = "block";
+
+var S = {muni:"",total:27,escrut:0,partic:0,mode:"lower",on:false,parties:[]}, last = "";
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function num(x){return parseFloat(String(x).replace(",","."))||0}
+function fm(x){return x.toFixed(1).replace(".",",")}
+function pct(p){var t=S.parties.reduce(function(a,x){return a+x.v},0);return t?p.v/t*100:0}
+function csv(t){var r=[],row=[],c="",q=false;for(var i=0;i<t.length;i++){var ch=t[i];
+ if(q){if(ch=='"'&&t[i+1]=='"'){c+='"';i++}else if(ch=='"')q=false;else c+=ch}
+ else if(ch=='"')q=true;else if(ch==","||ch==";"){row.push(c);c=""}
+ else if(ch=="\n"){row.push(c);r.push(row);row=[];c=""}else if(ch!="\r")c+=ch}
+ row.push(c);r.push(row);return r}
+function parse(t){var n={muni:"",total:27,escrut:0,partic:0,mode:"lower",on:false,parties:[]};
+ csv(t).forEach(function(r){var k=(r[0]||"").trim().toLowerCase(),v=(r[1]||"").trim();
+  if(k==="municipi")n.muni=v;else if(k==="total")n.total=num(v)||27;else if(k==="escrutat")n.escrut=num(v);
+  else if(k==="participacio")n.partic=num(v);else if(k==="mode")n.mode=v.toLowerCase();
+  else if(k==="antena")n.on=/^(si|sí|s|yes|true|1|on)$/i.test(v);
+  else if(/^#[0-9a-f]{6}$/i.test(v)&&k)n.parties.push({n:(r[0]||"").trim(),c:v,r:Math.round(num(r[2])),v:num(r[3])})});
+ return n}
+function sorted(){return S.parties.slice().sort(function(a,b){return (b.r-a.r)||(b.v-a.v)})}
+function stage(){var o=S.on?"":" off",maj=Math.floor(S.total/2)+1,s=sorted(),h="";
+ h+='<div class="lt'+(S.mode==="lower"?o:" off")+'"><div class="h"><b>'+esc(S.muni)+'</b><span>'+(S.escrut?fm(S.escrut)+"% escrutat":"Escrutini")+(S.partic?" · Participació "+fm(S.partic)+"%":"")+'</span></div><div class="pp">'+s.slice(0,5).map(function(p){return'<div class="chip" style="--c:'+p.c+'"><i>'+esc(p.n)+'</i><b>'+p.r+'<small>'+fm(pct(p))+'%</small></b></div>'}).join("")+"</div></div>";
+ h+='<div class="full'+(S.mode==="full"?o:" off")+'"><h2>'+esc(S.muni)+'</h2><div class="sub">Regidors · majoria absoluta: '+maj+'</div>'+s.slice(0,7).map(function(p){return'<div class="br" style="--c:'+p.c+'"><span>'+esc(p.n)+'</span><div class="trk"><div class="fill" style="width:'+Math.min(100,p.r/S.total*100)+'%"></div><div class="mj" style="left:'+maj/S.total*100+'%"></div></div><b>'+p.r+'</b></div>'}).join("")+"</div>";
+ var dots=[];s.forEach(function(p){for(var i=0;i<p.r;i++)dots.push(p.c)});var d="";
+ for(var i=0;i<S.total;i++)d+='<u'+(dots[i]?' style="--c:'+dots[i]+'"':"")+"></u>";
+ h+='<div class="full'+(S.mode==="seats"?o:" off")+'"><h2>'+esc(S.muni)+'</h2><div class="sub">Majoria absoluta: '+maj+' regidors</div><div class="seats">'+d+'</div><div class="leg">'+s.filter(function(p){return p.r>0}).map(function(p){return'<i style="--c:'+p.c+'"><s></s>'+esc(p.n)+' '+p.r+"</i>"}).join("")+"</div></div>";
+ return h}
+var st=document.getElementById("stage");
+function fit(){st.style.transform="scale("+Math.min(innerWidth/1920,innerHeight/1080)+")"}
+function paint(){st.innerHTML=stage()}
+function poll(){
+ if(Q.has("demo")){S=parse("municipi,Sabadell\ntotal,27\nescrutat,62.5\nparticipacio,54.2\nmode,"+(Q.get("mode")||"lower")+"\nantena,SI\nA,#e4002b,9,21000\nB,#f7a800,7,16000\nC,#00a3e0,5,11000\nD,#6bbd45,3,7000\nE,#8e44ad,3,6500");paint();return}
+ fetch(CSV_URL+(CSV_URL.indexOf("?")>-1?"&":"?")+"t="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.text()}).then(function(t){
+  if(t!==last){last=t;S=parse(t);paint()}dbg.textContent="OK "+new Date().toLocaleTimeString()}).catch(function(){dbg.textContent="ERROR llegint el Sheet (es manté l'últim estat)"})}
+addEventListener("resize",fit);fit();paint();poll();setInterval(poll,REFRESH_MS);
+</script>
+</body>
+</html>
